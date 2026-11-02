@@ -1,0 +1,48 @@
+name: Build SD card app
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      APP_NAME: ${{ github.event.repository.name }}
+    steps:
+      - name: Check out app
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install MkDocs
+        run: python -m pip install mkdocs
+
+      - name: Build SD-card app
+        run: |
+          test -d sdcard
+          test -d docs
+          mkdir -p "dist/$APP_NAME"
+          cp -R sdcard/. "dist/$APP_NAME/"
+          if [ -f "dist/$APP_NAME/main.lua" ]; then
+            sed "s/APP_NAME/$APP_NAME/g" "dist/$APP_NAME/main.lua" > "dist/$APP_NAME/main.lua.tmp"
+            mv "dist/$APP_NAME/main.lua.tmp" "dist/$APP_NAME/main.lua"
+          fi
+          mkdocs build --strict --site-dir "$PWD/dist/$APP_NAME/docs"
+
+      - name: Upload SD-card app
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdcard-${{ github.event.repository.name }}
+          path: dist/
+          if-no-files-found: error
